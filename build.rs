@@ -16,9 +16,13 @@ const COMMIT: &'static str = "HEAD";
 const LINK_VOLK: bool = true;
 
 fn main() {
-    let main_header = PathBuf::from(env::var("OUT_DIR").unwrap()).join("include/srslte/srslte.h");
-    let gen_include_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("include");
-    let gen_libpath = PathBuf::from(env::var("OUT_DIR").unwrap()).join("lib");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let gen_libpath = out_dir.join("lib");
+    let gen_include_path = PathBuf::from(out_dir).join("include");
+
+    let main_header = gen_include_path.join("srslte/srslte.h");
+    let rf_header = gen_include_path.join("srslte/phy/rf/rf.h");
+
     //use volk, defaults to true
     let link_volk: bool = match option_env!("SRSLTE_SYS_VOLK") {
         Some(b) => std::str::FromStr::from_str(b).unwrap_or_else(|_| LINK_VOLK),
@@ -27,25 +31,27 @@ fn main() {
 
 
     //if the header does not exist assume we need to rebuild
-    if !main_header.exists() {
+    if !main_header.exists() || !rf_header.exists() {
         build_srslte();
     }
 
     let bindings = bindgen::Builder::default()
-    .header(format!("{}", main_header.display()))
-    .clang_arg(format!("-I{}",gen_include_path.display()))
-        // no need to redefine float related stuff
+        .header(format!("{}", main_header.display()))
+        .header(format!("{}", rf_header.display()))
+        .clang_arg(format!("-I{}", gen_include_path.display()))
         .hide_type("FP_NORMAL")
         .hide_type("FP_NAN")
         .hide_type("FP_INFINITE")
         .hide_type("FP_ZERO")
         .hide_type("FP_SUBNORMAL")
-        //fixes bindgen errors
         .constified_enum("*")
-        //.rustified_enum("*")
-        //.rustfmt_bindings(false)
+        .link_static("srslte_common")
+        .link_static("srslte_phy")
+        .link_static("srslte_radio")
+        .link_static("srslte_upper")
+        .link_static("srslte_asn1")
+        .link("srslte_rf")
         .generate()
-        // Unwrap the Result and panic on failure.
         .expect("Unable to generate bindings");
 
     //spit the bindings into a file
@@ -55,32 +61,12 @@ fn main() {
         "Couldn't write bindings!",
     );
 
-    //add the built libs to the path
     println!("cargo:rustc-link-search=native={}", gen_libpath.display());
 
-    let static_libs = vec![
-        "srslte_common",
-        "srslte_phy",
-        "srslte_asn1",
-        "srslte_upper",
-        "srslte_radio",
-    ];
-
-    for lib in static_libs {
-        println!("cargo:rustc-link-lib={}", lib);
-    }
-    println!("cargo:rustc-flags=-l dylib=srslte_rf");
-
-    //link deps
-    println!("cargo:rustc-flags=-l fftw3f");
 
     if link_volk {
         println!("cargo:rustc-flags=-l dylib=volk");
     }
-
-
-    // not sure about whether we need to link that explicitly
-    //println!("cargo:rustc-flags=-l dylib=pthread");
 }
 
 fn build_srslte() {
@@ -118,6 +104,8 @@ fn build_srslte() {
 
     }
 
-    cmake::build(format!("{}", srces.display()));
+    cmake::Config::new(format!("{}", srces.display()))
+        .define("ENABLE_BLADERF", "OFF")
+        .build();
 
 }
