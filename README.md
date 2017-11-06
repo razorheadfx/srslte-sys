@@ -28,8 +28,21 @@ The build can be customized via environment variables
 Other
 * ```cargo clean``` also removes the sources (they are cloned to target/srslte_sources)
 
+## Usage
+Cargo.toml
+```
+[dependencies]
+srslte-sys = {git = "https://github.com/razorheadfx/srslte-sys"}
+```
+lib.rs
+```
+extern crate srslte_sys as srslte;
+```
+
+
 ## TODO
 * Build a safe wrapper in another project
+* Publish on crates.io
 * De-clutter build-script
-* Switch to bindgen 0.31.* once it is stable enough to build the bindings without failing; in build.rs replace ```hide_type()``` with ```blacklisted_type()``` and remove ```constified_enums()``` (since it is the default in 0.31.*)
+* Switch to bindgen 0.31.x once it is stable enough to build the bindings without failing; in build.rs replace ```hide_type()``` with ```blacklisted_type()``` (deprecated in 0.31.x) and remove ```constified_enums()``` (since it is the default in 0.31.x)
 * Generate bindings for srsENB and srsUE CPP headers/components
