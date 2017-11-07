@@ -23,7 +23,6 @@ The build can be customized via environment variables
 * ``` SRSLTE_SYS_REPO ``` : Set the repo URL to use (defaults to https://github.com/srsLTE/srslte)
 * ``` SRSLTE_SYS_BRANCH ``` : Set the branch (defaults to master)
 * ``` SRSLTE_SYS_COMMIT ``` : Set the commit to check out (defaults to HEAD)
-* ``` SRSLTE_SYS_VOLK ``` : Set whether to link [VOLK](http://libvolk.org/) for downstream build processes (defaults to true)
   
 Other
 * ```cargo clean``` also removes the sources (they are cloned to target/srslte_sources)

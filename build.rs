@@ -1,5 +1,6 @@
 extern crate cmake;
 extern crate bindgen;
+extern crate pkg_config;
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,6 @@ const SRCPATH: &'static str = "target/srslte_sources";
 const REPO: &'static str = "https://github.com/srsLTE/srslte";
 const BRANCH: &'static str = "master";
 const COMMIT: &'static str = "HEAD";
-const LINK_VOLK: bool = true;
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -22,13 +22,6 @@ fn main() {
 
     let main_header = gen_include_path.join("srslte/srslte.h");
     let rf_header = gen_include_path.join("srslte/phy/rf/rf.h");
-
-    //use volk, defaults to true
-    let link_volk: bool = match option_env!("SRSLTE_SYS_VOLK") {
-        Some(b) => std::str::FromStr::from_str(b).unwrap_or_else(|_| LINK_VOLK),
-        None => LINK_VOLK,
-    };
-
 
     //if the header does not exist assume we need to rebuild
     if !main_header.exists() || !rf_header.exists() {
@@ -63,8 +56,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", gen_libpath.display());
 
-
-    if link_volk {
+    if pkg_config::probe_library("volk").is_ok(){
         println!("cargo:rustc-flags=-l dylib=volk");
     }
 }
