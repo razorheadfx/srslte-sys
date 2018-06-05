@@ -1,11 +1,12 @@
 # srslte-sys
 Unsafe Rust bindings for [srsLTE](https://github.com/srsLTE/srslte) on linux generated via [bindgen](https://github.com/rust-lang-nursery/rust-bindgen).  
-These are bindings for the components written in C (i.e. [srslte/src/lib*](https://github.com/srsLTE/srsLTE/tree/master/lib), but may be extended to cover the high-level C++ components at some point.
+These are bindings for the components written in C (i.e. [srslte/src/lib*](https://github.com/srsLTE/srsLTE/tree/master/lib), but may be extended to cover the high-level C++ components at some point (once bindgen can handle C++).  
 
-## How it works
+## How to use it
 1. Clone [srsLTE](https://github.com/srsLTE/srsLTE) from GitHub
-2. Build srsLTE using the [cmake](https://crates.io/crates/cmake) crate
-3. Use rust-bindgen to generate the bindings
+2. Build srsLTE and install them somewhere (i.e. adding ```-DCMAKE_INSTALL_PREFIX=<install dir>``` to the cmake command)
+3. export the install directory ```export SRSLTE_DIR=<install dir>``` and/or add it to your .bashrc/.zshrc
+4. ```cargo build``` to make the bindings and run ```cargo test``` to run bindgen's automatically generated layout tests
 
 ## Dependencies
 Native  
@@ -17,15 +18,6 @@ Rust
 * [bindgen](https://crates.io/crates/bindgen)
 * [cmake](https://crates.io/crates/cmake)
 
-
-## Customizing the Build
-The build can be customized via environment variables  
-* ``` SRSLTE_SYS_REPO ``` : Set the repo URL to use (defaults to https://github.com/srsLTE/srslte)
-* ``` SRSLTE_SYS_BRANCH ``` : Set the branch (defaults to master)
-* ``` SRSLTE_SYS_COMMIT ``` : Set the commit to check out (defaults to HEAD)
-  
-Other
-* ```cargo clean``` also removes the sources (they are cloned to target/srslte_sources)
 
 ## Usage
 Cargo.toml
@@ -42,6 +34,3 @@ extern crate srslte_sys as srslte;
 ## TODO
 * Build a safe wrapper in another project
 * Publish on crates.io
-* De-clutter build-script
-* Switch to bindgen 0.31.x once it is stable enough to build the bindings without failing; in build.rs replace ```hide_type()``` with ```blacklisted_type()``` (deprecated in 0.31.x) and remove ```constified_enums()``` (since it is the default in 0.31.x)
-* Generate bindings for srsENB and srsUE CPP headers/components
