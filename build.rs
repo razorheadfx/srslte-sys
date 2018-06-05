@@ -59,5 +59,8 @@ fn main() {
     // binding linking doesnt work, must do it this way
     println!("cargo:rustc-flags=-l dylib=srslte_phy");
     println!("cargo:rustc-flags=-l dylib=srslte_common");
-    // we're not linking srslte_rf since that loads libuhd, which will be loaded by soapysdr (and probably use a different version)
+
+    if cfg!(feature = "srslte_rf") {
+        println!("cargo:rustc-flags=-l dylib=srslte_common");
+    }
 }
