@@ -1,103 +1,63 @@
-extern crate cmake;
 extern crate bindgen;
 extern crate pkg_config;
 
 use std::env;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
-//clone the repo to...
-const SRCPATH: &'static str = "target/srslte_sources";
-
-//defaults, are override by environment variables
-//SRSLTE_SYS_{REPO,BRANCH,COMMIT}
-const REPO: &'static str = "https://github.com/srsLTE/srslte";
-const BRANCH: &'static str = "master";
-const COMMIT: &'static str = "HEAD";
+use std::path::PathBuf;
 
 fn main() {
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let gen_libpath = out_dir.join("lib");
-    let gen_include_path = PathBuf::from(out_dir).join("include");
+    let srslte_dir = {
+        let dir = env::var("SRSLTE_DIR").expect(
+            "Please set environment variable SRSLTE_DIR to point at the built version of srslte",
+        );
+        let p = PathBuf::from(dir);
+        assert!(
+            p.is_dir() && p.exists(),
+            "The given SRSLTE_DIR is not a valid directory"
+        );
+        p
+    };
 
-    let main_header = gen_include_path.join("srslte/srslte.h");
-    let rf_header = gen_include_path.join("srslte/phy/rf/rf.h");
+    let bindings_out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("srslte_bindings.rs");
+
+    let libdir = srslte_dir.join("lib/");
+    let include_dir = srslte_dir.join("include/");
+
+    let main_header = include_dir.join("srslte/srslte.h");
+    let rf_header = include_dir.join("srslte/phy/rf/rf.h");
 
     //if the header does not exist assume we need to rebuild
-    if !main_header.exists() || !rf_header.exists() {
-        build_srslte();
-    }
-
     let bindings = bindgen::Builder::default()
         .header(format!("{}", main_header.display()))
         .header(format!("{}", rf_header.display()))
-        .clang_arg(format!("-I{}", gen_include_path.display()))
-        .hide_type("FP_NORMAL")
-        .hide_type("FP_NAN")
-        .hide_type("FP_INFINITE")
-        .hide_type("FP_ZERO")
-        .hide_type("FP_SUBNORMAL")
-        .constified_enum("*")
-        .link_static("srslte_common")
-        .link_static("srslte_phy")
-        .link_static("srslte_radio")
-        .link_static("srslte_upper")
-        .link_static("srslte_asn1")
-        .link("srslte_rf")
+        .clang_arg(format!("-I{}", include_dir.display()))
+        .blacklist_type("FP_NORMAL")
+        .blacklist_type("FP_NAN")
+        .blacklist_type("FP_INFINITE")
+        .blacklist_type("FP_ZERO")
+        .blacklist_type("FP_SUBNORMAL")
+        .constified_enum_module("*")
         .generate()
         .expect("Unable to generate bindings");
 
     //spit the bindings into a file
-    let gen_bindings = PathBuf::from(env::var("OUT_DIR").unwrap()).join("bindings.rs");
 
-    bindings.write_to_file(gen_bindings).expect(
-        "Couldn't write bindings!",
-    );
+    bindings
+        .write_to_file(bindings_out)
+        .expect("Couldn't write bindings!");
 
-    println!("cargo:rustc-link-search=native={}", gen_libpath.display());
+    // add the bindings dir to the linker path
+    println!("cargo:rustc-link-search=native={}", libdir.display());
 
-    if pkg_config::probe_library("volk").is_ok(){
+    // modify the linker paths and link library components
+    pkg_config::probe_library("fftw3").expect("Failed to find fftw3; is it installed?");
+
+    // link volk of installed (assumes srslte is built with it)
+    if pkg_config::probe_library("volk").is_ok() {
         println!("cargo:rustc-flags=-l dylib=volk");
     }
-}
 
-fn build_srslte() {
-    let srces = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join(SRCPATH);
-
-    //and checkout
-    let repo: &str = option_env!("SRSLTE_SYS_REPO").unwrap_or_else(|| REPO);
-    let branch: &str = option_env!("SRSLTE_SYS_BRANCH").unwrap_or_else(|| BRANCH);
-    let commit: &str = option_env!("SRSLTE_SYS_COMMIT").unwrap_or_else(|| COMMIT);
-
-
-    //if it isnt there clone it
-    if !Path::new(&srces.join(".git")).exists() {
-
-        Command::new("git")
-            .arg("clone")
-            .arg(format!("--branch={}", branch))
-            .arg(repo)
-            .arg(&srces)
-            .output()
-            .expect(&format!(
-                "Cloning {} of {} to {} failed",
-                branch,
-                repo,
-                srces.display()
-            ));
-
-        Command::new("git")
-            .arg("reset")
-            .arg("--hard")
-            .arg(commit)
-            .output()
-            .expect(&format!("Resetting to {} failed", commit));
-
-
-    }
-
-    cmake::Config::new(format!("{}", srces.display()))
-        .define("ENABLE_BLADERF", "OFF")
-        .build();
-
+    // binding linking doesnt work, must do it this way
+    println!("cargo:rustc-flags=-l dylib=srslte_phy");
+    println!("cargo:rustc-flags=-l dylib=srslte_common");
+    // we're not linking srslte_rf since that loads libuhd, which will be loaded by soapysdr (and probably use a different version)
 }
