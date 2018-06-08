@@ -48,9 +48,6 @@ fn main() {
     // add the bindings dir to the linker path
     println!("cargo:rustc-link-search=native={}", libdir.display());
 
-    // modify the linker paths and link library components
-    pkg_config::probe_library("fftw3").expect("Failed to find fftw3; is it installed?");
-
     // link volk of installed (assumes srslte is built with it)
     if pkg_config::probe_library("volk").is_ok() {
         println!("cargo:rustc-flags=-l dylib=volk");
@@ -58,6 +55,10 @@ fn main() {
 
     // binding linking doesnt work, must do it this way
     println!("cargo:rustc-flags=-l dylib=srslte_phy");
+    // link fftw3/f (as demanded by phy)
+    pkg_config::probe_library("fftw3").expect("Failed to find fftw3; is it installed?");
+    pkg_config::probe_library("fftw3f").expect("Failed to find fftw3; is it installed?");
+
     println!("cargo:rustc-flags=-l dylib=srslte_common");
 
     if cfg!(feature = "srslte_rf") {
