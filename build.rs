@@ -62,6 +62,6 @@ fn main() {
     println!("cargo:rustc-flags=-l dylib=srslte_common");
 
     if cfg!(feature = "srslte_rf") {
-        println!("cargo:rustc-flags=-l dylib=srslte_common");
+        println!("cargo:rustc-flags=-l dylib=srslte_rf");
     }
 }
